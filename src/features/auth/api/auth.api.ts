@@ -1,5 +1,5 @@
-import { api } from "../../shared/api/http";
-import type { User } from "./auth.store";
+import { api } from "../../../shared/api/http";
+import type { User } from "../auth.store";
 
 interface LoginResponse {
     access_token: string;

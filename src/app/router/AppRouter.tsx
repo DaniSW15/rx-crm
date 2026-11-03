@@ -9,7 +9,7 @@ import {
 
 import { useQueryClient } from "@tanstack/react-query";
 
-import LoginPage from "../../features/auth/LoginPage";
+import LoginPage from "../../features/auth/pages/LoginPage";
 import DealsPage from "../../features/deals/pages/DealsPage";
 import { useAuthStore } from "../../features/auth/auth.store";
 

@@ -1,8 +1,8 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router";
-import { useAuthStore } from "./auth.store";
+import { useAuthStore } from "../auth.store";
 import { useState, type ChangeEvent } from "react";
-import { loginSession } from "./auth.api";
+import { loginSession } from "../api/auth.api";
 
 export default function LoginPage() {
     const navigate = useNavigate();

@@ -1,4 +1,35 @@
-# React + TypeScript + Vite
+# RX CRM
+
+## Kanban de oportunidades
+
+Con el backend en `http://127.0.0.1:8000`, ejecuta `npm run dev`, inicia
+sesión y abre **Oportunidades**. El proxy conserva el prefijo `/api/v1`.
+
+- Arrastra desde **Mover** a otra etapa, incluso si la columna está vacía.
+- Con teclado, enfoca **Mover**, pulsa Espacio o Enter, usa las flechas izquierda
+  y derecha, y confirma con Espacio o Enter. Escape cancela.
+- Al soltar se envía `POST /api/v1/deals/{id}/move-stage` con
+  `{ "new_stage_id": "<id de la etapa>" }` y el token Bearer de la sesión.
+- La tarjeta cambia de etapa y estado inmediatamente. Mientras se guarda, el
+  tablero bloquea nuevos movimientos. La respuesta del servidor confirma los
+  datos; un rechazo restaura la tarjeta y muestra el motivo.
+- Soltar en la misma etapa, fuera de las columnas o cancelar no envía peticiones.
+
+## Verificación
+
+```bash
+npm test
+npm run lint
+npm run build
+```
+
+`npm run test:watch` ejecuta Vitest en modo interactivo. Las pruebas usan Testing
+Library, sensores reales de dnd-kit y respuestas HTTP simuladas; no necesitan
+el backend ni modifican sus datos. Cubren arrastre con puntero y teclado,
+confirmación, rollback ante errores HTTP y de red, cancelación de consultas
+pendientes y aislamiento de sesiones y organizaciones.
+
+## Plantilla React + TypeScript + Vite
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 

@@ -105,6 +105,7 @@ export default function DealsPage() {
                     )}
 
                     <DealKanban
+                        key={selectedPipeline.id}
                         pipeline={selectedPipeline}
                         deals={dealsQuery.data}
                     />

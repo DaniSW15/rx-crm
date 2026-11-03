@@ -1,11 +1,12 @@
 import type { Deal } from "../types/deal.tpes";
-
+import type { ReactNode } from "react";
 
 interface DealCardProps {
     deal: Deal;
+    dragHandle?: ReactNode;
 }
 
-export default function DealCard({ deal }: DealCardProps) {
+export default function DealCard({ deal, dragHandle }: DealCardProps) {
     const formattedAmount = new Intl.NumberFormat("es-MX", {
         style: "currency",
         currency: deal.currency,
@@ -22,6 +23,7 @@ export default function DealCard({ deal }: DealCardProps) {
                 color: "#0f172a",
             }}
         >
+            {dragHandle}
             <h3 style={{ fontSize: "15px", margin: "0 0 10px" }}>
                 {deal.title}
             </h3>

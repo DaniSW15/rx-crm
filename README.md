@@ -1,5 +1,10 @@
 # RX CRM
 
+La [revisión de Fase 2](docs/phase-2-review.md) registra los hallazgos comprobados
+de autenticación, concurrencia y sesión, junto con sus criterios de cierre.
+`npm run verify:api-auth` comprueba por GET que las rutas privadas rechacen
+credenciales ausentes o inválidas; falla deliberadamente con autenticación demo.
+
 ## Kanban de oportunidades
 
 Con el backend en `http://127.0.0.1:8000`, ejecuta `npm run dev`, inicia

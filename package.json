@@ -9,6 +9,7 @@
     "lint": "eslint .",
     "test": "vitest run",
     "test:watch": "vitest",
+    "verify:api-auth": "node scripts/verify-api-auth.mjs",
     "preview": "vite preview"
   },
   "dependencies": {

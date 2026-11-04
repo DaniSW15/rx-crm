@@ -29,12 +29,12 @@ afterEach(() => {
 
 describe("useMoveDeal", () => {
     it.each([
-        ["stage-won", "WON"],
-        ["stage-lost", "LOST"],
+        ["stage-won", "OPEN"],
+        ["stage-lost", "OPEN"],
         ["stage-open", "OPEN"],
-    ])("optimistically moves to %s with status %s and reconciles the server response", async (stageId, status) => {
+    ])("optimistically moves to %s preserving status %s until the server confirms", async (stageId, status) => {
         const original = stageId === "stage-open"
-            ? { ...deal, stage_id: "stage-lost", status: "LOST" as const }
+            ? { ...deal, stage_id: "stage-lost" }
             : deal;
         client.setQueryData(queryKey, [original]);
         const response = deferred<Response>();
@@ -62,7 +62,7 @@ describe("useMoveDeal", () => {
         expect(client.getQueryState(queryKey)?.isInvalidated).toBe(true);
     });
 
-    it.each([403, 422, 500])("rolls back a rejected HTTP %s move without overwriting other cards or tenants", async (status) => {
+    it.each([401, 403, 409, 422, 500])("rolls back a rejected HTTP %s move without overwriting other cards or tenants", async (status) => {
         const other = { ...deal, id: "deal-2", title: "Otra oportunidad" };
         const otherTenantKey = dealKeys.list("tenant-2", pipeline.id);
         client.setQueryData(queryKey, [deal, other]);
@@ -101,6 +101,28 @@ describe("useMoveDeal", () => {
         vi.stubGlobal("fetch", fetchMock);
         const { result } = renderHook(() => useMoveDeal(pipeline), { wrapper: Wrapper });
         act(() => result.current.mutate({ dealId: deal.id, stageId: "foreign-stage" }));
+        await waitFor(() => expect(result.current.isError).toBe(true));
+        expect(fetchMock).not.toHaveBeenCalled();
+        expect(client.getQueryData(queryKey)).toEqual([deal]);
+    });
+
+    it.each(["WON", "LOST"] as const)("rejects moving a closed %s opportunity before sending a request", async (status) => {
+        const closed = { ...deal, status };
+        client.setQueryData(queryKey, [closed]);
+        const fetchMock = vi.fn();
+        vi.stubGlobal("fetch", fetchMock);
+        const { result } = renderHook(() => useMoveDeal(pipeline), { wrapper: Wrapper });
+        act(() => result.current.mutate({ dealId: deal.id, stageId: "stage-won" }));
+        await waitFor(() => expect(result.current.isError).toBe(true));
+        expect(fetchMock).not.toHaveBeenCalled();
+        expect(client.getQueryData(queryKey)).toEqual([closed]);
+    });
+
+    it("rejects moves in an inactive pipeline", async () => {
+        const fetchMock = vi.fn();
+        vi.stubGlobal("fetch", fetchMock);
+        const { result } = renderHook(() => useMoveDeal({ ...pipeline, is_active: false }), { wrapper: Wrapper });
+        act(() => result.current.mutate({ dealId: deal.id, stageId: "stage-won" }));
         await waitFor(() => expect(result.current.isError).toBe(true));
         expect(fetchMock).not.toHaveBeenCalled();
         expect(client.getQueryData(queryKey)).toEqual([deal]);

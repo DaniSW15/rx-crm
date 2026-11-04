@@ -1,10 +1,11 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { useAuthStore } from "../../auth/auth.store";
 import { getDeals } from "../api/deals.api";
 import { dealKeys } from "../api/dealKeys";
 
 export function useDeals(pipelineId?: string) {
+    const queryClient = useQueryClient();
     const token = useAuthStore((state) => state.token);
     const tenantId = useAuthStore(
         (state) => state.user?.tenant_id
@@ -18,5 +19,7 @@ export function useDeals(pipelineId?: string) {
         },
         enabled: Boolean(token && tenantId && pipelineId),
         retry: false,
+        refetchOnWindowFocus: () => queryClient.isMutating({ mutationKey: ["move-deal", tenantId, pipelineId] }) === 0,
+        refetchOnReconnect: () => queryClient.isMutating({ mutationKey: ["move-deal", tenantId, pipelineId] }) === 0,
     });
 }

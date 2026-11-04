@@ -1,5 +1,43 @@
 # Revisión de ingeniería — 2 de noviembre de 2026
 
+## Actualización — 3 de noviembre de 2026
+
+Aplicada la corrección de autenticación en `crm_backend`: las rutas protegidas
+exigen JWT incluso con DEBUG activado. Se eliminó la identidad demo automática;
+los headers de organización y usuario no autentican peticiones.
+
+`Settings` incorpora `ENVIRONMENT=production` y rechaza debug, logging SQL,
+claves de ejemplo y claves de menos de 32 caracteres en ese entorno. También
+valida HS256 como algoritmo admitido y una duración positiva del access token.
+
+Validación en una copia temporal materializada desde Git, debido a archivos
+descargados a iCloud: **68 pruebas pasan y 4 de PostgreSQL se omiten** por falta de
+`TEST_DATABASE_URL`. Los siete archivos aplicados coinciden con la copia probada.
+Una instancia HTTP temporal, con DEBUG activado y sin inicializar la base de
+datos, pasa **las 24 comprobaciones de autenticación, sin fallos**.
+
+La concurrencia de oportunidades, la recuperación de sesión y la validación
+integral entre organizaciones en PostgreSQL siguen pendientes. Los resultados
+de acceso demo documentados a continuación corresponden al estado anterior del
+2 de noviembre.
+
+Completado el componente de Kanban del frontend con el contrato actual de
+`move-stage`: la actualización optimista cambia la etapa y conserva el estado
+hasta recibir la respuesta del servidor. Se bloquean movimientos de oportunidades
+cerradas, se conservan visibles las tarjetas sin etapa y se distinguen errores
+de acceso, conflicto y conexión. La página incorpora actualización manual y
+conserva datos ante errores temporales; ante 401 o 403 oculta el tablero.
+Validación: **53 pruebas frontend, build y lint pasan**, usando respuestas HTTP
+simuladas y una instalación temporal de las versiones del lockfile. Esta entrega
+no incorpora un endpoint de refresh ni versionado de oportunidades en FastAPI.
+
+La interfaz global incorpora ahora navegación lateral, perfil, temas claro y
+oscuro, acceso responsive, dashboard y analítica con indicadores de la API,
+y directorio de clientes con búsqueda y paginación. Las vistas se comprobaron
+en Chrome con respuestas HTTP simuladas; las capturas en `artifacts/` señalan
+que contienen datos de ejemplo. La integración visual no cierra los pendientes
+de concurrencia, refresh, revocación desde React o pruebas con PostgreSQL.
+
 Alcance: frontend `rx-crm`, lectura del backend local `crm_backend`, peticiones
 GET a `127.0.0.1:8000` y pruebas existentes sin PostgreSQL. Esta revisión no
 modifica la configuración del backend, sesiones reales ni datos de negocio.
@@ -134,11 +172,11 @@ backend, desde `crm_backend`, sin escribir bytecode:
 PYTHONDONTWRITEBYTECODE=1 DEBUG=false PYTHONPATH=.:tests .venv/bin/python -m unittest test_security test_wiring test_logout test_transactions test_customers test_analytics -q
 ```
 
-Hallazgo adicional: `move-stage` llama a `deal.change_stage`, que cambia la etapa
-sin actualizar `status` según `is_won_stage` / `is_lost_stage`. React predice
-WON/LOST durante la actualización optimista y luego aplica el estado del servidor.
-Hay que acordar el contrato de cierre y reapertura, incluido el motivo de pérdida,
-para evitar una interfaz temporalmente contradictoria.
+Hallazgo adicional corregido en React: `move-stage` llama a `deal.change_stage`,
+que cambia la etapa sin actualizar `status` según `is_won_stage` / `is_lost_stage`.
+El frontend conserva ahora el estado hasta recibir la respuesta. El contrato
+de cierre y reapertura, incluido el motivo de pérdida, sigue siendo una decisión
+de negocio para una implementación posterior.
 
 Orden propuesto para Fase 2: cerrar autenticación demo y validar dos tenants;
 implementar versión y conflictos; integrar logout y recuperación segura de

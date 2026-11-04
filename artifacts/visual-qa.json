@@ -1,0 +1,32 @@
+{
+  "status": "passed",
+  "browser": "Chrome",
+  "desktop": "1440x1100",
+  "mobile": [
+    "390x844",
+    "320x740"
+  ],
+  "fixtures": "HTTP responses mocked in browser only; no backend data changed",
+  "checks": [
+    "login",
+    "password visibility",
+    "currency selection",
+    "theme switching",
+    "help dialog",
+    "keyboard kanban movement",
+    "customer search",
+    "analytics navigation",
+    "mobile layout",
+    "mobile navigation and Escape",
+    "401 cached-data handling"
+  ],
+  "browserErrors": [],
+  "screenshots": [
+    "crm-login.png",
+    "crm-dashboard-desktop.png",
+    "crm-dashboard-light.png",
+    "crm-kanban-desktop.png",
+    "crm-dashboard-mobile.png",
+    "crm-kanban-mobile.png"
+  ]
+}

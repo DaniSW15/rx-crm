@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useId, useState } from "react";
 import { createPortal } from "react-dom";
 import {
     DndContext,
@@ -17,6 +17,8 @@ import { useMoveDeal } from "../hooks/useMoveDeal";
 import DealCard from "./DealCard";
 import KanbanColumn from "./KanbanColumn";
 import { kanbanKeyboardCoordinates } from "./kanbanKeyboardCoordinates";
+import MoveErrorNotice from "./MoveErrorNotice";
+import "./kanban.css";
 
 interface DealKanbanProps {
     pipeline: Pipeline;
@@ -29,24 +31,30 @@ const columnCollision: CollisionDetection = (args) =>
 
 export default function DealKanban({ pipeline, deals }: DealKanbanProps) {
     const [activeId, setActiveId] = useState<string | null>(null);
+    const [focusDealId, setFocusDealId] = useState<string | null>(null);
+    const instructionsId = useId();
     const move = useMoveDeal(pipeline);
     const sensors = useSensors(
         useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
         useSensor(KeyboardSensor, { coordinateGetter: kanbanKeyboardCoordinates }),
     );
-    const stages = [...pipeline.stages].sort((a, b) => a.order - b.order);
+    const stages = pipeline.stages.filter((stage) => stage.pipeline_id === pipeline.id)
+        .sort((a, b) => a.order - b.order);
+    const pipelineDeals = deals.filter((deal) => deal.pipeline_id === pipeline.id);
     const stageIds = new Set(stages.map((stage) => stage.id));
-    const unmatchedDeals = deals.filter((deal) => !stageIds.has(deal.stage_id));
-    const activeDeal = deals.find((deal) => deal.id === activeId);
-    const dealName = (id: string | number) => deals.find((deal) => deal.id === id)?.title ?? "Oportunidad";
+    const unmatchedDeals = pipelineDeals.filter((deal) => !stageIds.has(deal.stage_id));
+    const activeDeal = pipelineDeals.find((deal) => deal.id === activeId);
+    const disabled = move.isMoving || !pipeline.is_active;
+    const dealName = (id: string | number) => pipelineDeals.find((deal) => deal.id === id)?.title ?? "Oportunidad";
     const stageName = (id: string | number) => stages.find((stage) => stage.id === id)?.name ?? "etapa";
 
-    function handleDragEnd({ active, over }: DragEndEvent) {
+    function handleDragEnd({ active, over, activatorEvent }: DragEndEvent) {
         setActiveId(null);
-        if (!over || move.isMoving || over.data.current?.type !== "stage") return;
-        const deal = deals.find((item) => item.id === active.id);
+        if (!over || disabled || over.data.current?.type !== "stage") return;
+        const deal = pipelineDeals.find((item) => item.id === active.id);
         const stage = stages.find((item) => item.id === over.id);
-        if (!deal || !stage || deal.pipeline_id !== pipeline.id || deal.stage_id === stage.id) return;
+        if (!deal || !stage || deal.status !== "OPEN" || deal.stage_id === stage.id) return;
+        setFocusDealId(activatorEvent instanceof KeyboardEvent ? deal.id : null);
         move.mutate({ dealId: deal.id, stageId: stage.id });
     }
 
@@ -56,6 +64,7 @@ export default function DealKanban({ pipeline, deals }: DealKanbanProps) {
             collisionDetection={columnCollision}
             onDragStart={({ active }) => {
                 move.reset();
+                setFocusDealId(null);
                 setActiveId(String(active.id));
             }}
             onDragCancel={() => setActiveId(null)}
@@ -74,46 +83,58 @@ export default function DealKanban({ pipeline, deals }: DealKanbanProps) {
                 },
             }}
         >
-            <p style={{ marginBottom: "16px" }}>
-                Arrastra desde el botón Mover para cambiar de etapa. Con teclado:
-                Espacio para tomar, flechas izquierda y derecha para elegir etapa,
-                Espacio para soltar y Escape para cancelar.
-            </p>
-
-            <div role="status" aria-live="polite">
-                {move.isMoving ? "Guardando movimiento..." : move.isSuccess
-                    ? `Movimiento guardado en ${stageName(move.data.stage_id)}.` : ""}
-            </div>
-
-            {move.isError && (
-                <div role="alert" style={{ marginBottom: "16px" }}>
-                    <p>No se pudo mover la oportunidad: {move.error.message}</p>
-                    <p>Se restauró la etapa anterior.</p>
-                    <button type="button" onClick={() => move.reset()}>Cerrar aviso</button>
-                </div>
-            )}
-
-            {unmatchedDeals.length > 0 && (
-                <p role="alert">
-                    Atención: {unmatchedDeals.length} oportunidades tienen una
-                    etapa que no aparece en este pipeline.
+            <section className="deal-kanban" aria-label={`Tablero de ${pipeline.name}`} aria-describedby={instructionsId}>
+                <p id={instructionsId} className="deal-kanban__instructions">
+                    Arrastra desde el botón Mover para cambiar de etapa. Con teclado:
+                    Espacio para tomar, flechas izquierda y derecha para elegir etapa,
+                    Espacio para soltar y Escape para cancelar.
                 </p>
-            )}
 
-            <div style={{ display: "flex", gap: "16px", overflowX: "auto", alignItems: "flex-start", padding: "4px 4px 20px" }}>
-                {stages.map((stage) => (
-                    <KanbanColumn
-                        key={stage.id}
-                        stage={stage}
-                        deals={deals.filter((deal) => deal.stage_id === stage.id)}
-                        disabled={move.isMoving}
-                    />
-                ))}
-            </div>
+                <div className="deal-kanban__status" role="status" aria-live="polite">
+                    {move.isMoving ? "Guardando movimiento..." : move.isSuccess
+                        ? `Movimiento guardado en ${stageName(move.data.stage_id)}.` : ""}
+                </div>
+
+                {move.isError && (
+                    <MoveErrorNotice error={move.error} onDismiss={() => move.reset()} />
+                )}
+
+                {!pipeline.is_active && (
+                    <p className="kanban-notice" role="status">Este embudo está inactivo. Sus oportunidades se muestran en modo de consulta.</p>
+                )}
+
+                {stages.length === 0 && (
+                    <p className="kanban-notice">Este embudo no tiene etapas disponibles. Configura sus etapas para poder mover oportunidades.</p>
+                )}
+
+                <div className="deal-kanban__columns">
+                    {stages.map((stage) => (
+                        <KanbanColumn
+                            key={stage.id}
+                            stage={stage}
+                            deals={pipelineDeals.filter((deal) => deal.stage_id === stage.id)}
+                            disabled={disabled}
+                            savingDealId={move.isMoving ? move.variables?.dealId : undefined}
+                            focusDealId={focusDealId ?? undefined}
+                        />
+                    ))}
+                </div>
+
+                {unmatchedDeals.length > 0 && (
+                    <section className="deal-kanban__unmatched" aria-label="Oportunidades sin etapa disponible">
+                        <h2>Sin etapa disponible</h2>
+                        <p role="alert" className="kanban-notice">
+                            {unmatchedDeals.length} {unmatchedDeals.length === 1 ? "oportunidad tiene" : "oportunidades tienen"} una etapa que no aparece en este embudo.
+                            Se muestran para consulta mientras se corrige su etapa.
+                        </p>
+                        {unmatchedDeals.map((deal) => <DealCard key={deal.id} deal={deal} />)}
+                    </section>
+                )}
+            </section>
 
             {createPortal(
                 <DragOverlay dropAnimation={null}>
-                    {activeDeal ? <div aria-hidden="true"><DealCard deal={activeDeal} /></div> : null}
+                    {activeDeal ? <div className="deal-kanban" aria-hidden="true"><DealCard deal={activeDeal} /></div> : null}
                 </DragOverlay>,
                 document.body,
             )}

@@ -7,32 +7,38 @@ interface DealCardProps {
 }
 
 export default function DealCard({ deal, dragHandle }: DealCardProps) {
-    const formattedAmount = new Intl.NumberFormat("es-MX", {
-        style: "currency",
-        currency: deal.currency,
-    }).format(Number(deal.amount));
+    let formattedAmount = `${deal.amount} ${deal.currency}`;
+    const amount = Number(deal.amount);
+    if (Number.isFinite(amount)) {
+        try {
+            formattedAmount = new Intl.NumberFormat("es-MX", {
+                style: "currency",
+                currency: deal.currency,
+                currencyDisplay: "code",
+            }).format(amount);
+        } catch {
+            // Preserve the supplied currency if it is not an ISO currency code.
+        }
+    }
 
     return (
-        <article
-            style={{
-                background: "#ffffff",
-                padding: "16px",
-                borderRadius: "10px",
-                border: "1px solid #e2e8f0",
-                marginBottom: "10px",
-                color: "#0f172a",
-            }}
-        >
-            {dragHandle}
-            <h3 style={{ fontSize: "15px", margin: "0 0 10px" }}>
+        <article className="deal-card" aria-label={deal.title} tabIndex={-1}>
+            {dragHandle && <div className="deal-card__controls">{dragHandle}</div>}
+            <h3 className="deal-card__title">
                 {deal.title}
             </h3>
 
             <strong>{formattedAmount}</strong>
 
-            <p style={{ fontSize: "12px", color: "#64748b" }}>
+            <p className="deal-card__meta">
                 Estado: {deal.status}
             </p>
+            {deal.expected_close_date && (
+                <p className="deal-card__meta">
+                    Cierre previsto: <time dateTime={deal.expected_close_date}>{deal.expected_close_date}</time>
+                </p>
+            )}
+            {deal.lost_reason && <p className="deal-card__meta">Motivo de pérdida: {deal.lost_reason}</p>}
         </article>
     );
 }

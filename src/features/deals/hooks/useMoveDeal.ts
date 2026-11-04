@@ -41,6 +41,7 @@ export function useMoveDeal(pipeline: Pipeline) {
         },
         onMutate: async ({ dealId, stageId }): Promise<MoveContext> => {
             if (!token || !tenantId) throw new Error("No existe una sesión activa");
+            if (!pipeline.is_active) throw new Error("El embudo no está activo");
             const stage = pipeline.stages.find((item) => item.id === stageId);
             if (!stage || stage.pipeline_id !== pipeline.id) {
                 throw new Error("La etapa no pertenece a este embudo");
@@ -54,12 +55,14 @@ export function useMoveDeal(pipeline: Pipeline) {
                 previousDeal.tenant_id !== tenantId || previousDeal.pipeline_id !== pipeline.id) {
                 throw new Error("La oportunidad no está disponible en este embudo");
             }
+            if (previousDeal.status !== "OPEN") {
+                throw new Error("Las oportunidades cerradas no se pueden mover");
+            }
 
             queryClient.setQueryData<Deal[]>(queryKey, (deals) =>
                 deals?.map((deal) => deal.id === dealId ? {
                     ...deal,
                     stage_id: stageId,
-                    status: stage.is_won_stage ? "WON" : stage.is_lost_stage ? "LOST" : "OPEN",
                 } : deal)
             );
 

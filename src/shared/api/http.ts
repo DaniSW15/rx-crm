@@ -3,6 +3,16 @@ type ApiOptions = RequestInit & {
     token?: string;
 };
 
+export class ApiError extends Error {
+    readonly status: number;
+
+    constructor(status: number, message: string) {
+        super(message);
+        this.name = "ApiError";
+        this.status = status;
+    }
+}
+
 export async function api<T>(
     endpoint: string,
     { token, ...options }: ApiOptions = {}
@@ -32,12 +42,20 @@ export async function api<T>(
 
             if (typeof body.detail === "string") {
                 message = body.detail;
+            } else if (Array.isArray(body.detail)) {
+                const messages = body.detail.flatMap((item: unknown) => {
+                    if (item && typeof item === "object" && "msg" in item && typeof item.msg === "string") {
+                        return [item.msg];
+                    }
+                    return [];
+                });
+                if (messages.length > 0) message = messages.join(" ");
             }
         } catch {
             // La respuesta no contiene JSON válido.
         }
 
-        throw new Error(message);
+        throw new ApiError(response.status, message);
     }
 
     if (response.status === 204) {

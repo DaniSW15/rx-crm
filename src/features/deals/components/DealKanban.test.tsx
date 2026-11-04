@@ -55,7 +55,7 @@ afterEach(() => {
 describe("DealKanban drag and drop with real dnd-kit sensors", () => {
     it("moves into an empty column using the keyboard, then shows the confirmed server state", async () => {
         const response = deferred<Response>();
-        const serverDeal = { ...deal, stage_id: "stage-won", status: "WON" };
+        const serverDeal = { ...deal, stage_id: "stage-won", status: "OPEN" };
         const fetchMock = vi.fn().mockImplementation((_url, options) =>
             options.method === "POST" ? response.promise : Promise.resolve(jsonResponse([serverDeal])));
         vi.stubGlobal("fetch", fetchMock);
@@ -69,13 +69,16 @@ describe("DealKanban drag and drop with real dnd-kit sensors", () => {
         await waitFor(() => expect(within(column("Ganado")).getByRole("heading", { name: deal.title })).toBeInTheDocument());
         expect(within(column("Prospección")).queryByRole("heading", { name: deal.title })).not.toBeInTheDocument();
         expect(screen.getByText("Guardando movimiento...")).toBeInTheDocument();
-        expect(screen.getByRole("button", { name: `Mover ${deal.title}` })).toBeDisabled();
+        expect(screen.getByRole("button", { name: `Mover ${deal.title}` })).toHaveAttribute("aria-disabled", "true");
+        expect(within(column("Ganado")).getByText("Estado: OPEN")).toBeInTheDocument();
         expect(fetchMock.mock.calls.filter(([, options]) => options.method === "POST")).toHaveLength(1);
 
         response.resolve(jsonResponse(serverDeal));
         await waitFor(() => expect(screen.getByText("Movimiento guardado en Ganado.")).toBeInTheDocument());
-        expect(within(column("Ganado")).getByText("Estado: WON")).toBeInTheDocument();
+        expect(within(column("Ganado")).getByText("Estado: OPEN")).toBeInTheDocument();
         expect(screen.getByRole("button", { name: `Mover ${deal.title}` })).toBeEnabled();
+        expect(screen.getByRole("button", { name: `Mover ${deal.title}` })).toHaveAttribute("aria-disabled", "false");
+        await waitFor(() => expect(screen.getByRole("button", { name: `Mover ${deal.title}` })).toHaveFocus());
     });
 
     it("restores the original column, reports a FastAPI rejection and allows retry", async () => {
@@ -95,6 +98,7 @@ describe("DealKanban drag and drop with real dnd-kit sensors", () => {
         expect(within(column("Prospección")).getByRole("heading", { name: deal.title })).toBeInTheDocument();
         expect(within(column("Ganado")).getByText("Sin oportunidades")).toBeInTheDocument();
         await waitFor(() => expect(screen.getByRole("button", { name: `Mover ${deal.title}` })).toBeEnabled());
+        await waitFor(() => expect(screen.getByRole("button", { name: `Mover ${deal.title}` })).toHaveFocus());
         await keyboard.click(screen.getByRole("button", { name: "Cerrar aviso" }));
         expect(screen.queryByRole("alert")).not.toBeInTheDocument();
         await takeCard();
@@ -114,7 +118,7 @@ describe("DealKanban drag and drop with real dnd-kit sensors", () => {
 
     it("moves with the pointer after the activation distance", async () => {
         const response = deferred<Response>();
-        const serverDeal = { ...deal, stage_id: "stage-lost", status: "LOST" };
+        const serverDeal = { ...deal, stage_id: "stage-lost", status: "OPEN" };
         vi.stubGlobal("fetch", vi.fn().mockImplementation((_url, options) =>
             options.method === "POST" ? response.promise : Promise.resolve(jsonResponse([serverDeal]))));
         renderBoard();
@@ -143,5 +147,56 @@ describe("DealKanban drag and drop with real dnd-kit sensors", () => {
         await waitFor(() => expect(handle).not.toHaveAttribute("aria-pressed", "true"));
         expect(fetchMock).not.toHaveBeenCalled();
         expect(within(column("Prospección")).getByRole("heading", { name: deal.title })).toBeInTheDocument();
+    });
+
+    it.each(["WON", "LOST"] as const)("shows closed %s cards and prevents dragging them", async (status) => {
+        client.setQueryData(queryKey, [{ ...deal, status }]);
+        const fetchMock = vi.fn();
+        vi.stubGlobal("fetch", fetchMock);
+        renderBoard();
+        const handle = screen.getByRole("button", { name: `Mover ${deal.title}` });
+        expect(handle).toBeDisabled();
+        expect(handle).toHaveAttribute("title", "Esta oportunidad está cerrada y no se puede mover");
+        expect(within(column("Prospección")).getByText(`Estado: ${status}`)).toBeInTheDocument();
+        await userEvent.click(handle);
+        expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it("keeps opportunities with a missing stage visible for consultation", () => {
+        client.setQueryData(queryKey, [{ ...deal, stage_id: "removed-stage" }]);
+        renderBoard();
+        const fallback = screen.getByRole("region", { name: "Oportunidades sin etapa disponible" });
+        expect(within(fallback).getByRole("heading", { name: deal.title })).toBeInTheDocument();
+        expect(within(fallback).queryByRole("button", { name: `Mover ${deal.title}` })).not.toBeInTheDocument();
+        expect(within(fallback).getByRole("alert")).toHaveTextContent("1 oportunidad tiene una etapa");
+    });
+
+    it("renders a pipeline without stages and preserves its cards", () => {
+        render(<QueryClientProvider client={client}>
+            <DealKanban pipeline={{ ...pipeline, stages: [] }} deals={[deal]} />
+        </QueryClientProvider>);
+        expect(screen.getByText(/Este embudo no tiene etapas/)).toBeInTheDocument();
+        expect(screen.getByRole("heading", { name: deal.title })).toBeInTheDocument();
+    });
+
+    it("prevents moving in an inactive pipeline", () => {
+        render(<QueryClientProvider client={client}>
+            <DealKanban pipeline={{ ...pipeline, is_active: false }} deals={[deal]} />
+        </QueryClientProvider>);
+        expect(screen.getByText(/Este embudo está inactivo/)).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: `Mover ${deal.title}` })).toHaveAttribute("aria-disabled", "true");
+    });
+
+    it("does not render cards from another pipeline", () => {
+        render(<QueryClientProvider client={client}>
+            <DealKanban pipeline={pipeline} deals={[{ ...deal, pipeline_id: "another-pipeline" }]} />
+        </QueryClientProvider>);
+        expect(screen.queryByRole("heading", { name: deal.title })).not.toBeInTheDocument();
+    });
+
+    it("keeps rendering when a currency code is malformed", () => {
+        client.setQueryData(queryKey, [{ ...deal, currency: "invalid" }]);
+        renderBoard();
+        expect(screen.getByText("15000.00 invalid")).toBeInTheDocument();
     });
 });

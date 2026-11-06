@@ -1,6 +1,5 @@
-
-import type { PipelineStage } from "../../pipelines/tyes/pipeline.types";
-import type { Deal } from "../types/deal.tpes";
+import type { PipelineStage } from "../../pipelines";
+import type { Deal } from "../types/deal.types";
 import { useDroppable } from "@dnd-kit/core";
 import DraggableDealCard from "./DraggableDealCard";
 
@@ -38,9 +37,7 @@ export default function KanbanColumn({
             }}
         >
             <header className="kanban-column__header">
-                <h2 className="kanban-column__title">
-                    {stage.name}
-                </h2>
+                <h2 className="kanban-column__title">{stage.name}</h2>
 
                 <span className="kanban-column__count">
                     {deals.length} {deals.length === 1 ? "oportunidad" : "oportunidades"}
@@ -50,7 +47,12 @@ export default function KanbanColumn({
             <ul className="kanban-column__list" aria-label={`Oportunidades en ${stage.name}`}>
                 {deals.map((deal) => (
                     <li key={deal.id}>
-                        <DraggableDealCard deal={deal} disabled={disabled} isSaving={deal.id === savingDealId} restoreFocus={deal.id === focusDealId} />
+                        <DraggableDealCard
+                            deal={deal}
+                            disabled={disabled}
+                            isSaving={deal.id === savingDealId}
+                            restoreFocus={deal.id === focusDealId}
+                        />
                     </li>
                 ))}
 

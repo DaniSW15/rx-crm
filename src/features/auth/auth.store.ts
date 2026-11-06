@@ -1,15 +1,7 @@
 import { create } from "zustand";
 
-export type Role = "ADMIN" | "DEV" | "CLIENTE";
-
-export interface User {
-    id: string;
-    tenant_id: string;
-    email: string;
-    full_name: string;
-    role: Role;
-    is_active: string;
-}
+import type { User } from "./model/auth.types";
+export type { User, Role } from "./model/auth.types";
 
 interface AuthState {
     token: string | null;
@@ -23,5 +15,5 @@ export const useAuthStore = create<AuthState>((set) => ({
     token: null,
     user: null,
     setSession: (token: string, user: User) => set({ token, user }),
-    logout: () => set({ token: null, user: null })
+    logout: () => set({ token: null, user: null }),
 }));

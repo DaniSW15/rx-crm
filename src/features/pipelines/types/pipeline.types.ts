@@ -1,4 +1,3 @@
-
 export interface PipelineStage {
     id: string;
     pipeline_id: string;

@@ -11,8 +11,8 @@ import {
     useSensors,
 } from "@dnd-kit/core";
 import type { CollisionDetection, DragEndEvent } from "@dnd-kit/core";
-import type { Pipeline } from "../../pipelines/tyes/pipeline.types";
-import type { Deal } from "../types/deal.tpes";
+import type { Pipeline } from "../../pipelines";
+import type { Deal } from "../types/deal.types";
 import { useMoveDeal } from "../hooks/useMoveDeal";
 import DealCard from "./DealCard";
 import KanbanColumn from "./KanbanColumn";
@@ -38,15 +38,18 @@ export default function DealKanban({ pipeline, deals }: DealKanbanProps) {
         useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
         useSensor(KeyboardSensor, { coordinateGetter: kanbanKeyboardCoordinates }),
     );
-    const stages = pipeline.stages.filter((stage) => stage.pipeline_id === pipeline.id)
+    const stages = pipeline.stages
+        .filter((stage) => stage.pipeline_id === pipeline.id)
         .sort((a, b) => a.order - b.order);
     const pipelineDeals = deals.filter((deal) => deal.pipeline_id === pipeline.id);
     const stageIds = new Set(stages.map((stage) => stage.id));
     const unmatchedDeals = pipelineDeals.filter((deal) => !stageIds.has(deal.stage_id));
     const activeDeal = pipelineDeals.find((deal) => deal.id === activeId);
     const disabled = move.isMoving || !pipeline.is_active;
-    const dealName = (id: string | number) => pipelineDeals.find((deal) => deal.id === id)?.title ?? "Oportunidad";
-    const stageName = (id: string | number) => stages.find((stage) => stage.id === id)?.name ?? "etapa";
+    const dealName = (id: string | number) =>
+        pipelineDeals.find((deal) => deal.id === id)?.title ?? "Oportunidad";
+    const stageName = (id: string | number) =>
+        stages.find((stage) => stage.id === id)?.name ?? "etapa";
 
     function handleDragEnd({ active, over, activatorEvent }: DragEndEvent) {
         setActiveId(null);
@@ -71,28 +74,38 @@ export default function DealKanban({ pipeline, deals }: DealKanbanProps) {
             onDragEnd={handleDragEnd}
             accessibility={{
                 screenReaderInstructions: {
-                    draggable: "Pulsa Espacio o Enter para tomar la oportunidad. Usa las flechas izquierda y derecha para cambiar de etapa. Pulsa Espacio o Enter para soltar, o Escape para cancelar.",
+                    draggable:
+                        "Pulsa Espacio o Enter para tomar la oportunidad. Usa las flechas izquierda y derecha para cambiar de etapa. Pulsa Espacio o Enter para soltar, o Escape para cancelar.",
                 },
                 announcements: {
                     onDragStart: ({ active }) => `Tomaste ${dealName(active.id)}.`,
-                    onDragOver: ({ over }) => over ? `Etapa de destino: ${stageName(over.id)}.` : "Fuera de las etapas.",
-                    onDragEnd: ({ active, over }) => over
-                        ? `Soltaste ${dealName(active.id)} en ${stageName(over.id)}.`
-                        : "Movimiento cancelado.",
+                    onDragOver: ({ over }) =>
+                        over ? `Etapa de destino: ${stageName(over.id)}.` : "Fuera de las etapas.",
+                    onDragEnd: ({ active, over }) =>
+                        over
+                            ? `Soltaste ${dealName(active.id)} en ${stageName(over.id)}.`
+                            : "Movimiento cancelado.",
                     onDragCancel: () => "Movimiento cancelado.",
                 },
             }}
         >
-            <section className="deal-kanban" aria-label={`Tablero de ${pipeline.name}`} aria-describedby={instructionsId}>
+            <section
+                className="deal-kanban"
+                aria-label={`Tablero de ${pipeline.name}`}
+                aria-describedby={instructionsId}
+            >
                 <p id={instructionsId} className="deal-kanban__instructions">
-                    Arrastra desde el botón Mover para cambiar de etapa. Con teclado:
-                    Espacio para tomar, flechas izquierda y derecha para elegir etapa,
-                    Espacio para soltar y Escape para cancelar.
+                    Arrastra desde el botón Mover para cambiar de etapa. Con teclado: Espacio para
+                    tomar, flechas izquierda y derecha para elegir etapa, Espacio para soltar y
+                    Escape para cancelar.
                 </p>
 
                 <div className="deal-kanban__status" role="status" aria-live="polite">
-                    {move.isMoving ? "Guardando movimiento..." : move.isSuccess
-                        ? `Movimiento guardado en ${stageName(move.data.stage_id)}.` : ""}
+                    {move.isMoving
+                        ? "Guardando movimiento..."
+                        : move.isSuccess
+                          ? `Movimiento guardado en ${stageName(move.data.stage_id)}.`
+                          : ""}
                 </div>
 
                 {move.isError && (
@@ -100,11 +113,17 @@ export default function DealKanban({ pipeline, deals }: DealKanbanProps) {
                 )}
 
                 {!pipeline.is_active && (
-                    <p className="kanban-notice" role="status">Este embudo está inactivo. Sus oportunidades se muestran en modo de consulta.</p>
+                    <p className="kanban-notice" role="status">
+                        Este embudo está inactivo. Sus oportunidades se muestran en modo de
+                        consulta.
+                    </p>
                 )}
 
                 {stages.length === 0 && (
-                    <p className="kanban-notice">Este embudo no tiene etapas disponibles. Configura sus etapas para poder mover oportunidades.</p>
+                    <p className="kanban-notice">
+                        Este embudo no tiene etapas disponibles. Configura sus etapas para poder
+                        mover oportunidades.
+                    </p>
                 )}
 
                 <div className="deal-kanban__columns">
@@ -121,20 +140,33 @@ export default function DealKanban({ pipeline, deals }: DealKanbanProps) {
                 </div>
 
                 {unmatchedDeals.length > 0 && (
-                    <section className="deal-kanban__unmatched" aria-label="Oportunidades sin etapa disponible">
+                    <section
+                        className="deal-kanban__unmatched"
+                        aria-label="Oportunidades sin etapa disponible"
+                    >
                         <h2>Sin etapa disponible</h2>
                         <p role="alert" className="kanban-notice">
-                            {unmatchedDeals.length} {unmatchedDeals.length === 1 ? "oportunidad tiene" : "oportunidades tienen"} una etapa que no aparece en este embudo.
-                            Se muestran para consulta mientras se corrige su etapa.
+                            {unmatchedDeals.length}{" "}
+                            {unmatchedDeals.length === 1
+                                ? "oportunidad tiene"
+                                : "oportunidades tienen"}{" "}
+                            una etapa que no aparece en este embudo. Se muestran para consulta
+                            mientras se corrige su etapa.
                         </p>
-                        {unmatchedDeals.map((deal) => <DealCard key={deal.id} deal={deal} />)}
+                        {unmatchedDeals.map((deal) => (
+                            <DealCard key={deal.id} deal={deal} />
+                        ))}
                     </section>
                 )}
             </section>
 
             {createPortal(
                 <DragOverlay dropAnimation={null}>
-                    {activeDeal ? <div className="deal-kanban" aria-hidden="true"><DealCard deal={activeDeal} /></div> : null}
+                    {activeDeal ? (
+                        <div className="deal-kanban" aria-hidden="true">
+                            <DealCard deal={activeDeal} />
+                        </div>
+                    ) : null}
                 </DragOverlay>,
                 document.body,
             )}

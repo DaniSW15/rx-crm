@@ -1,9 +1,10 @@
 import { useIsMutating, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useAuthStore } from "../../auth/auth.store";
-import type { Pipeline } from "../../pipelines/tyes/pipeline.types";
+import { useAuthStore } from "../../auth";
+import type { Pipeline } from "../../pipelines";
 import { dealKeys } from "../api/dealKeys";
 import { moveDealStage } from "../api/deals.api";
-import type { Deal } from "../types/deal.tpes";
+import type { Deal } from "../types/deal.types";
+import { flattenDeals, updateCachedDeal, type DealPages } from "./dealCache";
 
 interface MoveDealInput {
     dealId: string;
@@ -28,8 +29,11 @@ export function useMoveDeal(pipeline: Pipeline) {
     // Do not recreate private cache entries after logout or an account change.
     function canUpdateCache(context: Pick<MoveContext, "queryKey" | "token" | "tenantId">) {
         const session = useAuthStore.getState();
-        return session.token === context.token && session.user?.tenant_id === context.tenantId &&
-            queryClient.getQueryState(context.queryKey) !== undefined;
+        return (
+            session.token === context.token &&
+            session.user?.tenant_id === context.tenantId &&
+            queryClient.getQueryState(context.queryKey) !== undefined
+        );
     }
 
     const mutation = useMutation({
@@ -49,21 +53,22 @@ export function useMoveDeal(pipeline: Pipeline) {
 
             await queryClient.cancelQueries({ queryKey, exact: true });
 
-            const previousDeal = queryClient.getQueryData<Deal[]>(queryKey)
-                ?.find((deal) => deal.id === dealId);
-            if (!canUpdateCache({ queryKey, token, tenantId }) || !previousDeal ||
-                previousDeal.tenant_id !== tenantId || previousDeal.pipeline_id !== pipeline.id) {
+            const cached = queryClient.getQueryData<DealPages>(queryKey);
+            const previousDeal = cached && flattenDeals(cached).find((deal) => deal.id === dealId);
+            if (
+                !canUpdateCache({ queryKey, token, tenantId }) ||
+                !previousDeal ||
+                previousDeal.tenant_id !== tenantId ||
+                previousDeal.pipeline_id !== pipeline.id
+            ) {
                 throw new Error("La oportunidad no está disponible en este embudo");
             }
             if (previousDeal.status !== "OPEN") {
                 throw new Error("Las oportunidades cerradas no se pueden mover");
             }
 
-            queryClient.setQueryData<Deal[]>(queryKey, (deals) =>
-                deals?.map((deal) => deal.id === dealId ? {
-                    ...deal,
-                    stage_id: stageId,
-                } : deal)
+            queryClient.setQueryData<DealPages>(queryKey, (data) =>
+                updateCachedDeal(data, dealId, (deal) => ({ ...deal, stage_id: stageId })),
             );
 
             return { previousDeal, queryKey, token, tenantId };
@@ -71,14 +76,14 @@ export function useMoveDeal(pipeline: Pipeline) {
         onError: (_error, { dealId }, context) => {
             if (!context || !canUpdateCache(context)) return;
             // Restore only this card, preserving updates to other opportunities.
-            queryClient.setQueryData<Deal[]>(context.queryKey, (deals) =>
-                deals?.map((deal) => deal.id === dealId ? context.previousDeal : deal)
+            queryClient.setQueryData<DealPages>(context.queryKey, (data) =>
+                updateCachedDeal(data, dealId, () => context.previousDeal),
             );
         },
         onSuccess: (updatedDeal, { dealId }, context) => {
             if (!context || !canUpdateCache(context)) return;
-            queryClient.setQueryData<Deal[]>(context.queryKey, (deals) =>
-                deals?.map((deal) => deal.id === dealId ? updatedDeal : deal)
+            queryClient.setQueryData<DealPages>(context.queryKey, (data) =>
+                updateCachedDeal(data, dealId, () => updatedDeal),
             );
         },
         onSettled: (_data, _error, _variables, context) => {

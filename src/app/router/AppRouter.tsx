@@ -3,7 +3,7 @@ import LoginPage from "../../features/auth/pages/LoginPage";
 import DealsPage from "../../features/deals/pages/DealsPage";
 import DashboardPage from "../../features/dashboard/pages/DashboardPage";
 import CustomersPage from "../../features/customers/pages/CustomersPage";
-import { useAuthStore } from "../../features/auth/auth.store";
+import { useAuthStore } from "../../features/auth";
 import AppLayout from "../layout/AppLayout";
 
 function ProtectedRoute() {
@@ -12,17 +12,19 @@ function ProtectedRoute() {
 }
 
 export default function AppRouter() {
-    return <Routes>
-        <Route path="/login" element={<LoginPage />} />
-        <Route element={<ProtectedRoute />}>
-            <Route element={<AppLayout />}>
-                <Route path="/" element={<Navigate to="/dashboard" replace />} />
-                <Route path="/dashboard" element={<DashboardPage />} />
-                <Route path="/deals" element={<DealsPage />} />
-                <Route path="/customers" element={<CustomersPage />} />
-                <Route path="/analytics" element={<DashboardPage detailed />} />
+    return (
+        <Routes>
+            <Route path="/login" element={<LoginPage />} />
+            <Route element={<ProtectedRoute />}>
+                <Route element={<AppLayout />}>
+                    <Route path="/" element={<Navigate to="/dashboard" replace />} />
+                    <Route path="/dashboard" element={<DashboardPage />} />
+                    <Route path="/deals" element={<DealsPage />} />
+                    <Route path="/customers" element={<CustomersPage />} />
+                    <Route path="/analytics" element={<DashboardPage detailed />} />
+                </Route>
             </Route>
-        </Route>
-        <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>;
+            <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+    );
 }

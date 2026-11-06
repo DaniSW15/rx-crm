@@ -1,6 +1,6 @@
-
-type ApiOptions = RequestInit & {
+type ApiOptions<T> = RequestInit & {
     token?: string;
+    schema?: { parse: (input: unknown) => T };
 };
 
 export class ApiError extends Error {
@@ -15,7 +15,7 @@ export class ApiError extends Error {
 
 export async function api<T>(
     endpoint: string,
-    { token, ...options }: ApiOptions = {}
+    { token, schema, ...options }: ApiOptions<T> = {},
 ): Promise<T> {
     const headers = new Headers(options.headers);
 
@@ -44,7 +44,12 @@ export async function api<T>(
                 message = body.detail;
             } else if (Array.isArray(body.detail)) {
                 const messages = body.detail.flatMap((item: unknown) => {
-                    if (item && typeof item === "object" && "msg" in item && typeof item.msg === "string") {
+                    if (
+                        item &&
+                        typeof item === "object" &&
+                        "msg" in item &&
+                        typeof item.msg === "string"
+                    ) {
                         return [item.msg];
                     }
                     return [];
@@ -62,5 +67,14 @@ export async function api<T>(
         return undefined as T;
     }
 
-    return (await response.json()) as T;
+    const body: unknown = await response.json();
+    if (!schema) return body as T;
+    try {
+        return schema.parse(body);
+    } catch {
+        // Never expose response contents (including private fields) in validation errors.
+        throw new Error(
+            "La respuesta del servidor tiene un formato inesperado. Actualiza e inténtalo de nuevo.",
+        );
+    }
 }

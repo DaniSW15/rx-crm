@@ -8,11 +8,14 @@ export const kanbanKeyboardCoordinates: KeyboardCoordinateGetter = (
     if (event.code !== "ArrowLeft" && event.code !== "ArrowRight") return;
     event.preventDefault();
     const { collisionRect, droppableContainers, droppableRects, over, active } = context;
-    if (!collisionRect) return;
+    if (!collisionRect || !active) return;
 
-    const columns = droppableContainers.getEnabled()
+    const columns = droppableContainers
+        .getEnabled()
         .filter((container) => container.data.current?.type === "stage")
-        .sort((a, b) => (droppableRects.get(a.id)?.left ?? 0) - (droppableRects.get(b.id)?.left ?? 0));
+        .sort(
+            (a, b) => (droppableRects.get(a.id)?.left ?? 0) - (droppableRects.get(b.id)?.left ?? 0),
+        );
     const currentId = over?.id ?? active.data.current?.stageId;
     const index = columns.findIndex((column) => column.id === currentId);
     if (index === -1) return;

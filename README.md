@@ -55,8 +55,9 @@ sesión y abre **Oportunidades**. El proxy conserva el prefijo `/api/v1`.
 ## Verificación
 
 ```bash
-npm test
+npm run format:check
 npm run lint
+npm test
 npm run build
 ```
 
@@ -66,78 +67,57 @@ el backend ni modifican sus datos. Cubren arrastre con puntero y teclado,
 confirmación, rollback ante errores HTTP y de red, cancelación de consultas
 pendientes y aislamiento de sesiones y organizaciones.
 
-## Plantilla React + TypeScript + Vite
+## Arquitectura y contratos
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+`app` compone providers, rutas y layout. Cada funcionalidad mantiene sus APIs,
+hooks, tipos/modelos y componentes. Las dependencias entre funcionalidades usan
+sus `index.ts` públicos; `shared` no depende de funcionalidades. ESLint comprueba
+estos límites y evita React, Zustand y TanStack Query dentro de API/model/types.
+Las páginas de entrada se componen directamente desde el router.
 
-Currently, two official plugins are available:
+TypeScript tiene `strict` habilitado. Las respuestas de login, perfil, clientes,
+analítica, pipelines y oportunidades se validan con Zod antes de llegar al caché.
+El contrato de perfil usa `is_active: boolean`. Las funciones HTTP reciben token
+y señal de cancelación; los hooks coordinan sesión y estado remoto.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+El Kanban carga 50 oportunidades por petición y permite **Cargar más
+oportunidades**.
+Los conteos corresponden a las tarjetas cargadas. Una página de 50 permite
+consultar la siguiente; una página más corta termina la carga. Se deduplican IDs
+entre páginas. El caché paginado conserva todas las páginas al mover o restaurar
+una tarjeta. El backend debe mantener un orden estable para su paginación por
+offset; la deduplicación no garantiza una instantánea ante cambios concurrentes.
 
-## React Compiler
+**Cerrar sesión** envía `POST /api/v1/auth/logout/` con el JWT capturado, elimina
+el acceso local y limpia el caché inmediatamente. El login distingue cierre
+confirmado de revocación no confirmada por red, timeout o error del servidor.
+La petición tiene un límite de ocho segundos y no se repite automáticamente.
+Las respuestas tardías no modifican una sesión nueva. El access token continúa
+en memoria: refresh y recuperación tras recarga requieren un contrato adicional
+de backend y no están implementados en esta entrega.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+El [informe de arquitectura](docs/architecture-review.md) registra los cinco
+hallazgos originales y sus correcciones. `npm run format` aplica Prettier.
 
-## Expanding the ESLint configuration
+## Pruebas de navegador y CI
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-
+```bash
+npx playwright install chromium
+npm run test:e2e
 ```
 
-You can also install [eslint-plugin-react-x](https://npmx.dev/package/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://npmx.dev/package/eslint-plugin-react-dom) for React-specific lint rules:
+Si ya tienes Chrome instalado, también puedes ejecutar:
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-
+```bash
+PLAYWRIGHT_CHROME_CHANNEL=chrome npm run test:e2e
 ```
+
+Playwright inicia y detiene Vite en `127.0.0.1:4173`. Sus pruebas interceptan
+HTTP con datos de ejemplo: verifican login, 51 oportunidades, movimiento con
+teclado, rollback ante 409, logout remoto y navegación móvil. No requieren
+credenciales reales ni escriben datos en FastAPI. No prueban la revocación ni
+el aislamiento del servidor real.
+
+`.github/workflows/ci.yml` comprueba formato, lint, pruebas, build y navegador en
+push y pull requests. Para validar el servidor desplegado por separado, ejecuta
+`npm run verify:api-auth` y las pruebas de integración propias del backend.

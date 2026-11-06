@@ -27,7 +27,7 @@ const attempts = [
 
 export async function verifyApiAuth({ baseUrl, request = fetch, log = console.log }) {
     const target = new URL(baseUrl);
-    if (!['http:', 'https:'].includes(target.protocol) || target.username || target.password) {
+    if (!["http:", "https:"].includes(target.protocol) || target.username || target.password) {
         throw new Error("Usa una URL HTTP(S) sin credenciales.");
     }
     let failures = 0;
@@ -44,7 +44,9 @@ export async function verifyApiAuth({ baseUrl, request = fetch, log = console.lo
                 const challenge = response.headers.get("WWW-Authenticate") ?? "";
                 const passed = response.status === 401 && /^Bearer(?:\s|$)/i.test(challenge);
                 if (!passed) failures++;
-                log(`${passed ? "PASS" : "FAIL"} ${label}: HTTP ${response.status}; Bearer challenge=${/^Bearer(?:\s|$)/i.test(challenge)}`);
+                log(
+                    `${passed ? "PASS" : "FAIL"} ${label}: HTTP ${response.status}; Bearer challenge=${/^Bearer(?:\s|$)/i.test(challenge)}`,
+                );
                 await response.body?.cancel();
             } catch {
                 failures++;
@@ -53,7 +55,9 @@ export async function verifyApiAuth({ baseUrl, request = fetch, log = console.lo
         }
     }
     log(`${privatePaths.length * attempts.length} comprobaciones; ${failures} fallos.`);
-    log("Alcance: rechazo de peticiones sin credenciales válidas. No demuestra aislamiento con JWT válidos ni concurrencia.");
+    log(
+        "Alcance: rechazo de peticiones sin credenciales válidas. No demuestra aislamiento con JWT válidos ni concurrencia.",
+    );
     return failures;
 }
 

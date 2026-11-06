@@ -1,4 +1,4 @@
-import type { Deal } from "../types/deal.tpes";
+import type { Deal } from "../types/deal.types";
 import type { ReactNode } from "react";
 
 interface DealCardProps {
@@ -24,21 +24,20 @@ export default function DealCard({ deal, dragHandle }: DealCardProps) {
     return (
         <article className="deal-card" aria-label={deal.title} tabIndex={-1}>
             {dragHandle && <div className="deal-card__controls">{dragHandle}</div>}
-            <h3 className="deal-card__title">
-                {deal.title}
-            </h3>
+            <h3 className="deal-card__title">{deal.title}</h3>
 
             <strong>{formattedAmount}</strong>
 
-            <p className="deal-card__meta">
-                Estado: {deal.status}
-            </p>
+            <p className="deal-card__meta">Estado: {deal.status}</p>
             {deal.expected_close_date && (
                 <p className="deal-card__meta">
-                    Cierre previsto: <time dateTime={deal.expected_close_date}>{deal.expected_close_date}</time>
+                    Cierre previsto:{" "}
+                    <time dateTime={deal.expected_close_date}>{deal.expected_close_date}</time>
                 </p>
             )}
-            {deal.lost_reason && <p className="deal-card__meta">Motivo de pérdida: {deal.lost_reason}</p>}
+            {deal.lost_reason && (
+                <p className="deal-card__meta">Motivo de pérdida: {deal.lost_reason}</p>
+            )}
         </article>
     );
 }

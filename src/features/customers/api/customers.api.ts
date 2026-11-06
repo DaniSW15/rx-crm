@@ -1,23 +1,14 @@
-import { useQuery } from "@tanstack/react-query";
 import { api } from "../../../shared/api/http";
-import { useAuthStore } from "../../auth/auth.store";
+import { customerSchema } from "../model/customer";
 
-export interface Customer {
-    id: string;
-    tenant_id: string;
-    name: string;
-    industry: string | null;
-    website: string | null;
-    phone: string | null;
-    annual_revenue: string | null;
-    owner_id: string | null;
-    custom_fields: Record<string, unknown>;
-}
+export const CUSTOMER_PAGE_SIZE = 20;
 
-export function useCustomers(page = 0, limit = 20) {
-    const token = useAuthStore((state) => state.token);
-    const tenantId = useAuthStore((state) => state.user?.tenant_id);
-    return useQuery({ queryKey: ["customers", tenantId, page, limit],
-        queryFn: ({ signal }) => api<Customer[]>(`/customers/?limit=${limit}&offset=${page * limit}`, { token: token ?? undefined, signal }),
-        enabled: Boolean(token && tenantId), retry: false });
+export function getCustomers(
+    token: string,
+    page = 0,
+    limit = CUSTOMER_PAGE_SIZE,
+    signal?: AbortSignal,
+) {
+    const params = new URLSearchParams({ limit: String(limit), offset: String(page * limit) });
+    return api(`/customers/?${params}`, { token, signal, schema: customerSchema.array() });
 }
